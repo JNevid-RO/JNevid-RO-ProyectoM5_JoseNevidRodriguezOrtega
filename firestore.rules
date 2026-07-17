@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funciones auxiliares de seguridad
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'admin' ||
+        request.auth.token.email.matches('.*admin.*')
+      );
+    }
+
+    // Reglas para la colección de Usuarios (/users)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Reglas para el Catálogo de Productos (/products)
+    // - Lectura pública (clientes autenticados o visitantes)
+    // - Escritura reservada exclusivamente a Administradores
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Reglas para las Órdenes de Compra (/orders)
+    // - Creación: Usuarios autenticados asignando su propio UID
+    // - Lectura: El dueño de la orden o un Administrador
+    // - Actualización y eliminación: Solo Administradores
+    match /orders/{orderId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+  }
+}
