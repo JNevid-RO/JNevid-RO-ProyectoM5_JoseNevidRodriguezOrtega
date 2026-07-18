@@ -1,5 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut as firebaseSignOut,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -18,6 +25,7 @@ export const isFirebaseConfigured = Boolean(
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const googleProvider = new GoogleAuthProvider();
 
 export async function signInWithFirebase(email: string, pass: string) {
   if (!isFirebaseConfigured) {
@@ -30,6 +38,32 @@ export async function signInWithFirebase(email: string, pass: string) {
     };
   }
   return signInWithEmailAndPassword(auth, email, pass);
+}
+
+export async function signUpWithFirebase(email: string, pass: string) {
+  if (!isFirebaseConfigured) {
+    return {
+      user: {
+        uid: `user-${Date.now()}`,
+        email,
+        displayName: email.split('@')[0],
+      },
+    };
+  }
+  return createUserWithEmailAndPassword(auth, email, pass);
+}
+
+export async function signInWithGooglePopup() {
+  if (!isFirebaseConfigured) {
+    return {
+      user: {
+        uid: `user-google-${Date.now()}`,
+        email: 'usuario.google@ejemplo.com',
+        displayName: 'Usuario Google',
+      },
+    };
+  }
+  return signInWithPopup(auth, googleProvider);
 }
 
 export async function signOutFirebase() {

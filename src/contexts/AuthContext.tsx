@@ -1,13 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { UserProfile, UserRole } from '../types';
-import { auth, isFirebaseConfigured, signInWithFirebase, signOutFirebase } from '../services/firebase';
+import {
+  auth,
+  isFirebaseConfigured,
+  signInWithFirebase,
+  signUpWithFirebase,
+  signInWithGooglePopup,
+  signOutFirebase,
+} from '../services/firebase';
 
 interface AuthContextValue {
   user: UserProfile | null;
   loading: boolean;
   role: UserRole | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: { displayName?: string; shippingAddress?: string }) => void;
 }
@@ -81,6 +90,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signUp = async (email: string, password: string, nameInput?: string) => {
+    setLoading(true);
+    try {
+      const result = await signUpWithFirebase(email, password);
+      const firebaseUser = result.user;
+      const userRole: UserRole = email.includes('admin') ? 'admin' : 'customer';
+      const nextUser: UserProfile = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || email,
+        displayName: nameInput || email.split('@')[0],
+        role: userRole,
+      };
+      setUser(nextUser);
+      setRole(nextUser.role);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithGooglePopup();
+      const firebaseUser = result.user;
+      const userRole: UserRole = firebaseUser.email?.includes('admin') ? 'admin' : 'customer';
+      const nextUser: UserProfile = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario Google',
+        role: userRole,
+      };
+      setUser(nextUser);
+      setRole(nextUser.role);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     await signOutFirebase();
     setUser(null);
@@ -93,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ user, loading, role, signIn, signOut, updateUserProfile }),
+    () => ({ user, loading, role, signIn, signUp, signInWithGoogle, signOut, updateUserProfile }),
     [user, loading, role]
   );
 

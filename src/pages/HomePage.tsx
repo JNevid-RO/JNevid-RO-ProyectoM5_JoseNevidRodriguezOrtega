@@ -28,9 +28,18 @@ export function HomePage() {
 
   return (
     <section>
-      <div className="page-header">
-        <h1 className="page-title">Catálogo de Productos</h1>
-        <p className="page-subtitle">Descubre nuestra selección de productos de alta calidad</p>
+      {/* Hero Banner with catchy slogan */}
+      <div className="hero-banner animate-in">
+        <span className="hero-badge">Tecnología & Estilo</span>
+        <h1 className="hero-title">ShopNova — Innovación y Tecnología Premium a tu Alcance</h1>
+        <p className="hero-slogan">
+          Descubre dispositivos de alta gama, laptops ultraligeras y accesorios inteligentes diseñados para potenciar tu día a día con el mejor rendimiento y garantía.
+        </p>
+      </div>
+
+      <div className="page-header" style={{ marginTop: '2.5rem' }}>
+        <h2 className="page-title" style={{ fontSize: '1.5rem' }}>Catálogo de Productos</h2>
+        <p className="page-subtitle">Explora nuestra colección cuidadosamente seleccionada</p>
       </div>
 
       <div className="filter-row">
@@ -75,7 +84,7 @@ export function HomePage() {
               </div>
               <div className="product-body">
                 <span className="product-category">{product.category}</span>
-                <h2 className="product-title">{product.name}</h2>
+                <h3 className="product-title">{product.name}</h3>
                 <p className="product-desc">{product.description}</p>
                 <p className="product-price">{formatPrice(product.price)}</p>
                 <div className="product-actions">

@@ -17,7 +17,12 @@ declare module 'firebase/app' {
 
 declare module 'firebase/auth' {
   export function getAuth(app?: any): any;
+  export class GoogleAuthProvider {
+    constructor();
+  }
   export function signInWithEmailAndPassword(auth: any, email: string, pass: string): Promise<any>;
+  export function createUserWithEmailAndPassword(auth: any, email: string, pass: string): Promise<any>;
+  export function signInWithPopup(auth: any, provider: any): Promise<any>;
   export function signOut(auth: any): Promise<any>;
   export function onAuthStateChanged(auth: any, callback: (user: any) => void): () => void;
 }
