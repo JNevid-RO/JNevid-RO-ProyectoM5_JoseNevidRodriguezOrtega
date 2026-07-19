@@ -29,6 +29,9 @@ declare module 'firebase/auth' {
 
 declare module 'firebase/firestore' {
   export function getFirestore(app?: any): any;
+  export function doc(db: any, collection: string, id: string): any;
+  export function getDoc(ref: any): Promise<any>;
+  export function setDoc(ref: any, data: any, options?: any): Promise<void>;
 }
 
 declare module 'react/jsx-runtime' {
