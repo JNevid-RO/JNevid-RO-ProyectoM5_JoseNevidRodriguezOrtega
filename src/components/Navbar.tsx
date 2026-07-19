@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export function Navbar() {
   const { totalItems } = useCart();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { pendingOrders } = useOrders();
   const { theme, toggleTheme } = useTheme();
 
@@ -33,6 +33,13 @@ export function Navbar() {
                 Órdenes ({userPendingOrders.length})
               </Link>
             )}
+
+            {role === 'admin' && (
+              <Link to="/admin" className="nav-link nav-link-admin">
+                Administrador
+              </Link>
+            )}
+
             <Link to="/account" className="nav-link nav-link-account" title={user.email}>
               {displayName}
             </Link>

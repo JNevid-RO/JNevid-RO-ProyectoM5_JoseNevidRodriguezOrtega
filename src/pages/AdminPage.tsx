@@ -5,12 +5,17 @@ import { formatPrice } from '../lib/utils';
 import { uploadProductImage } from '../services/uploadService';
 import type { Product } from '../types';
 
-export function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
-  const [productList, setProductList] = useState<Product[]>(initialProducts);
-  const { orders, cancelOrder } = useOrders();
+type AdminTab = 'products' | 'orders';
 
-  // Form states for new product
+export function AdminPage() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('products');
+  const [productList, setProductList] = useState<Product[]>(
+    initialProducts.map((p) => ({ ...p, available: p.available !== false }))
+  );
+  const { orders, updateOrderStatus } = useOrders();
+
+  // ── Product form states ──
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -20,7 +25,29 @@ export function AdminPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const handleCreateProduct = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingProduct(null);
+    setName('');
+    setDescription('');
+    setPrice('');
+    setCategory('Computación');
+    setStock('10');
+    setImageFile(null);
+  };
+
+  const startEditing = (product: Product) => {
+    setEditingProduct(product);
+    setName(product.name);
+    setDescription(product.description);
+    setPrice(String(product.price));
+    setCategory(product.category);
+    setStock(String(product.stock));
+    setImageFile(null);
+    setMessage('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !price || !category) return;
 
@@ -28,30 +55,50 @@ export function AdminPage() {
     setMessage('');
 
     try {
-      let imageUrl = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80';
+      let imageUrl = editingProduct?.imageUrl ||
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80';
 
       if (imageFile) {
         const uploadResult = await uploadProductImage(imageFile);
         imageUrl = uploadResult.publicUrl;
       }
 
-      const newProduct: Product = {
-        id: `p-${Date.now()}`,
-        name,
-        description,
-        price: parseFloat(price),
-        category,
-        imageUrl,
-        stock: parseInt(stock, 10) || 0,
-        createdAt: new Date().toISOString(),
-      };
+      if (editingProduct) {
+        // Actualizar producto existente
+        setProductList((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id
+              ? {
+                  ...p,
+                  name,
+                  description,
+                  price: parseFloat(price),
+                  category,
+                  stock: parseInt(stock, 10) || 0,
+                  imageUrl,
+                }
+              : p
+          )
+        );
+        setMessage(`Producto "${name}" actualizado correctamente.`);
+      } else {
+        // Crear producto nuevo
+        const newProduct: Product = {
+          id: `p-${Date.now()}`,
+          name,
+          description,
+          price: parseFloat(price),
+          category,
+          imageUrl,
+          stock: parseInt(stock, 10) || 0,
+          available: true,
+          createdAt: new Date().toISOString(),
+        };
+        setProductList((prev) => [newProduct, ...prev]);
+        setMessage(`Producto "${name}" agregado al catálogo.`);
+      }
 
-      setProductList((prev) => [newProduct, ...prev]);
-      setName('');
-      setDescription('');
-      setPrice('');
-      setImageFile(null);
-      setMessage('Producto agregado exitosamente al catálogo.');
+      resetForm();
     } catch (error) {
       setMessage('Error al subir la imagen o registrar el producto.');
     } finally {
@@ -60,7 +107,36 @@ export function AdminPage() {
   };
 
   const handleDeleteProduct = (productId: string) => {
-    setProductList((prev) => prev.filter((p) => p.id !== productId));
+    const product = productList.find((p) => p.id === productId);
+    if (product && confirm(`¿Eliminar "${product.name}" del catálogo?`)) {
+      setProductList((prev) => prev.filter((p) => p.id !== productId));
+      setMessage(`Producto "${product.name}" eliminado.`);
+    }
+  };
+
+  const toggleAvailability = (productId: string) => {
+    setProductList((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? { ...p, available: !p.available }
+          : p
+      )
+    );
+  };
+
+  // ── Helpers de órdenes ──
+  const statusLabel: Record<string, string> = {
+    pending: 'Pendiente',
+    shipped: 'Enviada',
+    completed: 'Completada',
+    cancelled: 'Cancelada',
+  };
+
+  const statusBadgeClass: Record<string, string> = {
+    pending: 'badge-pending',
+    shipped: 'badge-shipped',
+    completed: 'badge-success',
+    cancelled: 'badge-cancelled',
   };
 
   return (
@@ -71,18 +147,18 @@ export function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
+      <div className="admin-tabs">
         <button
-          className={`btn ${activeTab === 'products' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`admin-tab ${activeTab === 'products' ? 'admin-tab-active' : ''}`}
           onClick={() => setActiveTab('products')}
         >
-          Gestión de Productos ({productList.length})
+          Productos ({productList.length})
         </button>
         <button
-          className={`btn ${activeTab === 'orders' ? 'btn-primary' : 'btn-ghost'}`}
+          className={`admin-tab ${activeTab === 'orders' ? 'admin-tab-active' : ''}`}
           onClick={() => setActiveTab('orders')}
         >
-          Gestión de Órdenes ({orders.length})
+          Órdenes ({orders.length})
         </button>
       </div>
 
@@ -92,14 +168,23 @@ export function AdminPage() {
         </div>
       )}
 
+      {/* ═══ TAB: PRODUCTOS ═══ */}
       {activeTab === 'products' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 360px) 1fr', gap: '2rem', alignItems: 'start' }}>
-          {/* Create Product Form */}
-          <div className="card card-lg" style={{ padding: '1.75rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem' }}>
-              Nuevo Producto
-            </h2>
-            <form onSubmit={handleCreateProduct} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 380px) 1fr', gap: '2rem', alignItems: 'start' }}>
+          {/* Formulario crear / editar */}
+          <div className="card" style={{ padding: '1.75rem', position: 'sticky', top: '5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+              </h2>
+              {editingProduct && (
+                <button className="btn btn-ghost btn-sm" onClick={resetForm}>
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmitProduct} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
                 <label className="label">Nombre del producto</label>
                 <input
@@ -123,6 +208,8 @@ export function AdminPage() {
                   <option value="Audio">Audio</option>
                   <option value="Wearables">Wearables</option>
                   <option value="Accesorios">Accesorios</option>
+                  <option value="Smartphones">Smartphones</option>
+                  <option value="Gaming">Gaming</option>
                 </select>
               </div>
 
@@ -163,7 +250,9 @@ export function AdminPage() {
               </div>
 
               <div className="form-group">
-                <label className="label">Imagen (Carga vía Presigned URL S3)</label>
+                <label className="label">
+                  {editingProduct ? 'Cambiar imagen (opcional)' : 'Imagen del producto'}
+                </label>
                 <input
                   type="file"
                   accept="image/*"
@@ -173,19 +262,34 @@ export function AdminPage() {
                 />
               </div>
 
+              {editingProduct && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <img
+                    src={editingProduct.imageUrl}
+                    alt="Imagen actual"
+                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Imagen actual</span>
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="btn btn-primary btn-block"
                 disabled={uploading}
                 style={{ marginTop: '0.5rem' }}
               >
-                {uploading ? 'Subiendo imagen a S3...' : 'Guardar producto'}
+                {uploading
+                  ? 'Subiendo imagen a S3...'
+                  : editingProduct
+                  ? 'Guardar cambios'
+                  : 'Agregar producto'}
               </button>
             </form>
           </div>
 
-          {/* Product List */}
-          <div style={{ display: 'grid', gap: '1rem' }}>
+          {/* Lista de productos */}
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
             {productList.map((p) => (
               <div
                 key={p.id}
@@ -195,6 +299,8 @@ export function AdminPage() {
                   alignItems: 'center',
                   gap: '1rem',
                   padding: '1rem',
+                  opacity: p.available === false ? 0.5 : 1,
+                  transition: 'opacity 0.2s ease',
                 }}
               >
                 <img
@@ -202,16 +308,31 @@ export function AdminPage() {
                   alt={p.name}
                   style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
                 />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name}</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <p style={{ fontWeight: 700, color: 'var(--text)' }}>{p.name}</p>
+                    {p.available === false && (
+                      <span className="badge badge-cancelled" style={{ fontSize: '0.65rem' }}>No disponible</span>
+                    )}
+                  </div>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Categoría: {p.category} | Stock: {p.stock} unidades
+                    {p.category} · Stock: {p.stock} · {formatPrice(p.price)}
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontWeight: 800, color: 'var(--text)', marginBottom: '0.4rem' }}>
-                    {formatPrice(p.price)}
-                  </p>
+                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                  <button
+                    className={`btn btn-sm ${p.available === false ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => toggleAvailability(p.id)}
+                    title={p.available === false ? 'Habilitar' : 'Deshabilitar'}
+                  >
+                    {p.available === false ? 'Habilitar' : 'Deshabilitar'}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => startEditing(p)}
+                  >
+                    Editar
+                  </button>
                   <button
                     className="btn btn-danger btn-sm"
                     onClick={() => handleDeleteProduct(p.id)}
@@ -224,40 +345,89 @@ export function AdminPage() {
           </div>
         </div>
       ) : (
-        /* Orders List Tab */
+        /* ═══ TAB: ÓRDENES ═══ */
         <div style={{ display: 'grid', gap: '1rem' }}>
           {orders.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state-title">No hay órdenes registradas</p>
-              <p className="empty-state-desc">Las órdenes realizadas por los clientes aparecerán en este panel</p>
+              <p className="empty-state-desc">Las órdenes realizadas por los clientes aparecerán aquí</p>
             </div>
           ) : (
             orders.map((ord) => (
               <div key={ord.id} className="card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                {/* Cabecera de la orden */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <div>
-                    <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>ID: {ord.id}</span>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      Usuario: {ord.userId} | Fecha: {new Date(ord.createdAt).toLocaleDateString('es-MX')}
+                    <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                      {ord.id}
+                    </span>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                      Cliente: {ord.userId} · {new Date(ord.createdAt).toLocaleDateString('es-MX', {
+                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })}
                     </p>
                   </div>
-                  <span className={`badge badge-${ord.status === 'pending' ? 'pending' : ord.status === 'completed' ? 'success' : 'cancelled'}`}>
-                    Estado: {ord.status}
+                  <span className={`badge ${statusBadgeClass[ord.status] || 'badge-pending'}`}>
+                    {statusLabel[ord.status] || ord.status}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                  Envío: {ord.shippingAddress}
+
+                {/* Productos de la orden */}
+                <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)', padding: '0.75rem', marginBottom: '0.75rem' }}>
+                  {ord.items.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '0.25rem 0' }}>
+                      <span>{item.name} × {item.quantity}</span>
+                      <span style={{ fontWeight: 600 }}>{formatPrice(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Dirección de envío */}
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                  Dirección de envío: {ord.shippingAddress}
                 </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>Total: {formatPrice(ord.total)}</span>
-                  {ord.status === 'pending' && (
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => cancelOrder(ord.id)}
-                    >
-                      Cancelar Orden
-                    </button>
-                  )}
+
+                {/* Total + Acciones */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 800, fontSize: '1.15rem' }}>
+                    Total: {formatPrice(ord.total)}
+                  </span>
+
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    {ord.status !== 'pending' && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => updateOrderStatus(ord.id, 'pending')}
+                      >
+                        Marcar Pendiente
+                      </button>
+                    )}
+                    {ord.status !== 'shipped' && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => updateOrderStatus(ord.id, 'shipped')}
+                      >
+                        Marcar Enviada
+                      </button>
+                    )}
+                    {ord.status !== 'completed' && (
+                      <button
+                        className="btn btn-sm"
+                        style={{ background: 'var(--success)', color: '#0f172a' }}
+                        onClick={() => updateOrderStatus(ord.id, 'completed')}
+                      >
+                        Completar
+                      </button>
+                    )}
+                    {ord.status !== 'cancelled' && (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => updateOrderStatus(ord.id, 'cancelled')}
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))

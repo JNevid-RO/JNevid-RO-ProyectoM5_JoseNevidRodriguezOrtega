@@ -17,6 +17,7 @@ export interface Product {
   category: string;
   imageUrl: string;
   stock: number;
+  available?: boolean;
   createdAt?: string;
 }
 
@@ -35,7 +36,7 @@ export interface OrderItem {
   quantity: number;
 }
 
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
 
 export interface Order {
   id: string;

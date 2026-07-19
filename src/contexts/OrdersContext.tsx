@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { Order, OrderItem } from '../types';
 
+type OrderStatus = 'pending' | 'shipped' | 'completed' | 'cancelled';
+
 interface OrdersContextValue {
   orders: Order[];
   pendingOrders: Order[];
   addOrder: (items: OrderItem[], total: number, shippingAddress: string, userId: string) => Order;
   cancelOrder: (orderId: string) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
 }
 
 const STORAGE_KEY = 'ecommerce_orders';
@@ -51,6 +54,12 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+    setOrders((prev) =>
+      prev.map((ord) => (ord.id === orderId ? { ...ord, status } : ord))
+    );
+  };
+
   const value = useMemo(() => {
     const pendingOrders = orders.filter((ord) => ord.status === 'pending');
     return {
@@ -58,6 +67,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       pendingOrders,
       addOrder,
       cancelOrder,
+      updateOrderStatus,
     };
   }, [orders]);
 
