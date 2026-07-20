@@ -1,17 +1,20 @@
-import { useState } from 'react';
-import { products as initialProducts } from '../data/products';
+import { useEffect, useState } from 'react';
 import { useOrders } from '../contexts/OrdersContext';
 import { formatPrice } from '../lib/utils';
 import { uploadProductImage } from '../services/uploadService';
+import {
+  subscribeToProducts,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+} from '../services/productService';
 import type { Product } from '../types';
 
 type AdminTab = 'products' | 'orders';
 
 export function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('products');
-  const [productList, setProductList] = useState<Product[]>(
-    initialProducts.map((p) => ({ ...p, available: p.available !== false }))
-  );
+  const [productList, setProductList] = useState<Product[]>([]);
   const { orders, updateOrderStatus } = useOrders();
 
   // ── Product form states ──
@@ -24,6 +27,14 @@ export function AdminPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Suscribirse a los productos en tiempo real desde Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts((newProducts) => {
+      setProductList(newProducts);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const resetForm = () => {
     setEditingProduct(null);
@@ -64,27 +75,19 @@ export function AdminPage() {
       }
 
       if (editingProduct) {
-        // Actualizar producto existente
-        setProductList((prev) =>
-          prev.map((p) =>
-            p.id === editingProduct.id
-              ? {
-                  ...p,
-                  name,
-                  description,
-                  price: parseFloat(price),
-                  category,
-                  stock: parseInt(stock, 10) || 0,
-                  imageUrl,
-                }
-              : p
-          )
-        );
+        // Actualizar producto existente en Firestore
+        await updateProduct(editingProduct.id, {
+          name,
+          description,
+          price: parseFloat(price),
+          category,
+          stock: parseInt(stock, 10) || 0,
+          imageUrl,
+        });
         setMessage(`Producto "${name}" actualizado correctamente.`);
       } else {
-        // Crear producto nuevo
-        const newProduct: Product = {
-          id: `p-${Date.now()}`,
+        // Crear producto nuevo en Firestore
+        await addProduct({
           name,
           description,
           price: parseFloat(price),
@@ -93,35 +96,43 @@ export function AdminPage() {
           stock: parseInt(stock, 10) || 0,
           available: true,
           createdAt: new Date().toISOString(),
-        };
-        setProductList((prev) => [newProduct, ...prev]);
+        });
         setMessage(`Producto "${name}" agregado al catálogo.`);
       }
 
       resetForm();
     } catch (error) {
+      console.error(error);
       setMessage('Error al subir la imagen o registrar el producto.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     const product = productList.find((p) => p.id === productId);
     if (product && confirm(`¿Eliminar "${product.name}" del catálogo?`)) {
-      setProductList((prev) => prev.filter((p) => p.id !== productId));
-      setMessage(`Producto "${product.name}" eliminado.`);
+      try {
+        await deleteProduct(productId);
+        setMessage(`Producto "${product.name}" eliminado.`);
+      } catch (error) {
+        console.error(error);
+        setMessage('Error al eliminar el producto.');
+      }
     }
   };
 
-  const toggleAvailability = (productId: string) => {
-    setProductList((prev) =>
-      prev.map((p) =>
-        p.id === productId
-          ? { ...p, available: !p.available }
-          : p
-      )
-    );
+  const toggleAvailability = async (productId: string) => {
+    const product = productList.find((p) => p.id === productId);
+    if (product) {
+      try {
+        const currentStatus = product.available !== false;
+        await updateProduct(productId, { available: !currentStatus });
+      } catch (error) {
+        console.error(error);
+        setMessage('Error al cambiar la disponibilidad.');
+      }
+    }
   };
 
   // ── Helpers de órdenes ──

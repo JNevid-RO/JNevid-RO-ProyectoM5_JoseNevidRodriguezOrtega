@@ -1,30 +1,44 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { products } from '../data/products';
+import { subscribeToProducts } from '../services/productService';
 import { formatPrice } from '../lib/utils';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDebounce } from '../hooks/useDebounce';
+import type { Product } from '../types';
 
 export function HomePage() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const { addItem } = useCart();
   const { user } = useAuth();
 
-  const categories = useMemo(() => [...new Set(products.map((p) => p.category))], []);
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts((newProducts) => {
+      setProducts(newProducts);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const categories = useMemo(() => {
+    const activeProducts = products.filter((p) => p.available !== false);
+    return [...new Set(activeProducts.map((p) => p.category))];
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     const query = debouncedSearch.toLowerCase().trim();
     return products.filter((product) => {
+      // Solo mostrar productos que estén disponibles para el público
+      const isAvailable = product.available !== false;
       const matchesCategory = category === 'All' || product.category === category;
       const matchesSearch =
         product.name.toLowerCase().includes(query) ||
         product.description.toLowerCase().includes(query);
-      return matchesCategory && matchesSearch;
+      return isAvailable && matchesCategory && matchesSearch;
     });
-  }, [category, debouncedSearch]);
+  }, [products, category, debouncedSearch]);
 
   return (
     <section>

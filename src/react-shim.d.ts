@@ -31,7 +31,17 @@ declare module 'firebase/firestore' {
   export function getFirestore(app?: any): any;
   export function doc(db: any, collection: string, id: string): any;
   export function getDoc(ref: any): Promise<any>;
+  export function getDocs(query: any): Promise<any>;
   export function setDoc(ref: any, data: any, options?: any): Promise<void>;
+  export function addDoc(collectionRef: any, data: any): Promise<any>;
+  export function updateDoc(ref: any, data: any): Promise<void>;
+  export function deleteDoc(ref: any): Promise<void>;
+  export function collection(db: any, path: string): any;
+  export function query(collectionRef: any, ...constraints: any[]): any;
+  export function where(field: string, op: string, value: any): any;
+  export function orderBy(field: string, direction?: string): any;
+  export function onSnapshot(query: any, callback: (snapshot: any) => void): () => void;
+  export function serverTimestamp(): any;
 }
 
 declare module 'react/jsx-runtime' {

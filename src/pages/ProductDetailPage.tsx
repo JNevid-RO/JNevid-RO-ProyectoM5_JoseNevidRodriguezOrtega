@@ -1,16 +1,25 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { products } from '../data/products';
+import { subscribeToProducts } from '../services/productService';
 import { formatPrice } from '../lib/utils';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import type { Product } from '../types';
 
 export function ProductDetailPage() {
   const { id } = useParams();
   const { addItem } = useCart();
   const { user } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const product = useMemo(() => products.find((item) => item.id === id), [id]);
+  useEffect(() => {
+    const unsubscribe = subscribeToProducts((newProducts) => {
+      setProducts(newProducts);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const product = products.find((item) => item.id === id);
 
   if (!product) {
     return (
@@ -133,7 +142,7 @@ export function ProductDetailPage() {
                 Agregar al carrito
               </button>
             ) : (
-              <Link to="/login" className="btn btn-outline btn-lg btn-block">
+              <Link to="/login" className="btn btn-secondary btn-lg btn-block">
                 Iniciar sesión para comprar
               </Link>
             )}

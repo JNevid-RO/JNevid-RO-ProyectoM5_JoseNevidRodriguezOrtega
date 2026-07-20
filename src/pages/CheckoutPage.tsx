@@ -16,7 +16,7 @@ export function CheckoutPage() {
 
   const canSubmit = state.items.length > 0 && address.trim().length > 0;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!canSubmit || !user) return;
 
     const orderItems: OrderItem[] = state.items.map((item) => ({
@@ -26,7 +26,7 @@ export function CheckoutPage() {
       quantity: item.quantity,
     }));
 
-    addOrder(orderItems, totalAmount, address, user.uid);
+    await addOrder(orderItems, totalAmount, address, user.uid);
     setDone(true);
     clearCart();
   };
