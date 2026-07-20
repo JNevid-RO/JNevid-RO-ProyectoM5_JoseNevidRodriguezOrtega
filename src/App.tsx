@@ -21,7 +21,7 @@ export function App() {
       <AuthProvider>
         <OrdersProvider>
           <CartProvider>
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Layout>
                 <Navbar />
                 <Routes>
