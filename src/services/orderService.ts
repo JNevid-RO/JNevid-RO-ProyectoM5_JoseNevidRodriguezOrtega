@@ -1,6 +1,8 @@
 import {
   collection,
   doc,
+  getDoc,
+  setDoc,
   addDoc,
   updateDoc,
   query,
@@ -44,15 +46,36 @@ export async function createOrder(
 
 /**
  * Actualiza el estado de una orden en Firestore.
+ * Si la orden no existe en Firestore (porque proviene del caché local de localStorage),
+ * se inserta la orden completa con el nuevo estado.
  */
-export async function updateOrderStatus(orderId: string, status: string): Promise<void> {
+export async function updateOrderStatus(
+  orderId: string,
+  status: string,
+  fullOrderFallback?: Order
+): Promise<void> {
   if (!isFirebaseConfigured) return;
   const orderRef = doc(db, ORDERS_COLLECTION, orderId);
-  await updateDoc(orderRef, { status });
+  
+  try {
+    const snap = await getDoc(orderRef);
+    if (!snap.exists() && fullOrderFallback) {
+      await setDoc(orderRef, {
+        ...fullOrderFallback,
+        status,
+      });
+    } else {
+      await updateDoc(orderRef, { status });
+    }
+  } catch (error) {
+    console.error('Error al actualizar estado de orden:', error);
+    throw error;
+  }
 }
 
 /**
  * Escucha en tiempo real las órdenes de un usuario específico.
+ * Se ordena en memoria para EVITAR la necesidad de crear un índice compuesto en Firestore.
  */
 export function subscribeToUserOrders(userId: string, callback: (orders: Order[]) => void): () => void {
   if (!isFirebaseConfigured) {
@@ -61,16 +84,18 @@ export function subscribeToUserOrders(userId: string, callback: (orders: Order[]
   }
 
   try {
+    // Al quitar orderBy, eliminamos por completo la obligatoriedad de crear un índice en Firebase
     const q = query(
       collection(db, ORDERS_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
     return onSnapshot(q, (snapshot: any) => {
       const orders: Order[] = [];
       snapshot.forEach((docSnap: any) => {
         orders.push({ id: docSnap.id, ...docSnap.data() } as Order);
       });
+      // Ordenar por fecha de creación descendente en memoria
+      orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       callback(orders);
     });
   } catch (error) {

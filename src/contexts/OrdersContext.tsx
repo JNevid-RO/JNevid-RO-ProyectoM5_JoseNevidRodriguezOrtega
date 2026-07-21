@@ -75,14 +75,16 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cancelOrder = (orderId: string) => {
-    updateOrderStatusInFirestore(orderId, 'cancelled').catch(console.error);
+    const existingOrder = orders.find((o) => o.id === orderId);
+    updateOrderStatusInFirestore(orderId, 'cancelled', existingOrder).catch(console.error);
     setOrders((prev) =>
       prev.map((ord) => (ord.id === orderId ? { ...ord, status: 'cancelled' as const } : ord))
     );
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    updateOrderStatusInFirestore(orderId, status).catch(console.error);
+    const existingOrder = orders.find((o) => o.id === orderId);
+    updateOrderStatusInFirestore(orderId, status, existingOrder).catch(console.error);
     setOrders((prev) =>
       prev.map((ord) => (ord.id === orderId ? { ...ord, status } : ord))
     );
