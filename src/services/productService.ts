@@ -1,8 +1,10 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -81,11 +83,30 @@ export async function addProduct(product: Omit<Product, 'id'>): Promise<Product>
 
 /**
  * Actualiza un producto existente en Firestore.
+ * Si el producto es uno de los locales (iniciales) y aún no existe en Firestore,
+ * se crea automáticamente importando sus datos base.
  */
 export async function updateProduct(productId: string, data: Partial<Product>): Promise<void> {
   if (!isFirebaseConfigured) return;
   const productRef = doc(db, PRODUCTS_COLLECTION, productId);
-  await updateDoc(productRef, data);
+  
+  try {
+    const snap = await getDoc(productRef);
+    if (!snap.exists()) {
+      // Buscar los datos por defecto del producto local
+      const defaultData = localProducts.find((p) => p.id === productId) || {};
+      await setDoc(productRef, {
+        ...defaultData,
+        ...data,
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      await updateDoc(productRef, data);
+    }
+  } catch (error) {
+    console.error('Error al actualizar producto:', error);
+    throw error;
+  }
 }
 
 /**
