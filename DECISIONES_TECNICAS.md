@@ -57,3 +57,23 @@ Este documento recopila las decisiones técnicas fundamentales tomadas durante e
 ## 10. Enrutamiento del Cliente: React Router v6 (con flags v7)
 * **Decisión:** Utilizar `react-router-dom` habilitando los "future flags" para la transición de estado (`v7_startTransition`).
 * **Argumento:** React Router permite la navegación entre páginas (Home, Cart, Checkout, Admin) sin recargas del navegador, manteniendo vivo el estado del Carrito (Context). Habilitar los flags del futuro previene advertencias de obsolescencia en la consola y deja la base de código preparada (Future-Proof) para las inminentes actualizaciones mayores de React (Concurrent Mode) y React Router v7.
+
+## 11. Diseño Responsivo y Mobile First
+* **Decisión:** Priorizar una arquitectura CSS basada en Flexbox y Grid sin media queries redundantes.
+* **Argumento:** Gran parte del tráfico de e-commerce proviene de dispositivos móviles. El uso de funciones fluidas como `grid-template-columns: repeat(auto-fit, minmax(...))` permite que el catálogo de productos y el panel de control se adapten matemáticamente a cualquier tamaño de pantalla sin necesidad de reescribir docenas de reglas para breakpoints específicos, asegurando una experiencia nativa tanto en un celular como en un monitor ultrawide.
+
+## 12. Estrategia de Variables de Entorno (.env)
+* **Decisión:** Mantener las credenciales maestras (Firebase API Keys y AWS Secrets) estrictamente fuera del control de versiones mediante `.gitignore`.
+* **Argumento:** Evitar la exposición de claves privadas en GitHub es una regla de oro en ciberseguridad. Para asegurar que cualquier otro desarrollador o evaluador entienda la infraestructura, se documentó un archivo `.env.example` con las llaves requeridas. El prefijo `VITE_` asegura que solo las llaves públicas lleguen al cliente web, mientras que las de AWS quedan totalmente protegidas y aisladas en Node.js (Servidor).
+
+## 13. Prevención de Fugas de Memoria (Memory Leaks) en Tiempo Real
+* **Decisión:** Implementar funciones de limpieza (`cleanup functions`) en los hooks `useEffect` que se conectan a Firebase.
+* **Argumento:** Cuando se utiliza `onSnapshot` de Firestore, se abre un canal de datos persistente. Si el usuario navega a otra página y el componente se desmonta, el canal seguiría vivo, consumiendo memoria y procesador del navegador. Retornar el método `unsubscribe()` en el `useEffect` (en contextos y hooks) garantiza que la conexión a la base de datos se destruya de forma segura cuando ya no es necesaria.
+
+## 14. Optimización de Búsqueda: Debouncing (Custom Hook)
+* **Decisión:** Implementar un hook personalizado `useDebounce` para la barra de búsqueda del catálogo.
+* **Argumento:** Disparar un re-renderizado masivo o una búsqueda compleja en memoria por cada letra individual que el usuario teclea destruiría el rendimiento. El `useDebounce` intercepta la escritura y espera deliberadamente a que el usuario deje de teclear por 300ms antes de ejecutar el filtro. Esto reduce la carga del procesador del cliente drásticamente y evita comportamientos erráticos (saltos de pantalla) durante la escritura.
+
+## 15. Por qué NoSQL sobre SQL (Sin un ORM tradicional)
+* **Decisión:** No utilizar bases de datos relacionales (como MySQL/PostgreSQL) ni mapeadores objeto-relacionales (ORM como Prisma o TypeORM).
+* **Argumento:** La naturaleza de un catálogo de productos e-commerce a menudo requiere extrema flexibilidad en los atributos. Firestore (NoSQL) permite almacenar documentos con esquemas anidados y arrays directos (ideal para el carrito dentro de una orden), que se acoplan perfectamente y de forma nativa a las Interfaces de TypeScript creadas en el frontend (`Product`, `OrderItem`). Esto elimina la fricción y el mantenimiento de complejas tablas relacionales (`JOINs`), agilizando dramáticamente el desarrollo del panel administrador.
