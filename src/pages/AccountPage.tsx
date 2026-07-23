@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,12 +7,44 @@ export function AccountPage() {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [shippingAddress, setShippingAddress] = useState(user?.shippingAddress || '');
+  
+  const [street, setStreet] = useState(user?.addressDetails?.street || '');
+  const [city, setCity] = useState(user?.addressDetails?.city || '');
+  const [stateRegion, setStateRegion] = useState(user?.addressDetails?.stateRegion || '');
+  const [zip, setZip] = useState(user?.addressDetails?.zip || '');
+  const [country, setCountry] = useState(user?.addressDetails?.country || '');
+  const [phone, setPhone] = useState(user?.addressDetails?.phone || '');
+
   const [saved, setSaved] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Sincronizar estado local si el usuario cambia (ej. recarga de Firestore)
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || '');
+      if (user.addressDetails) {
+        setStreet(user.addressDetails.street || '');
+        setCity(user.addressDetails.city || '');
+        setStateRegion(user.addressDetails.stateRegion || '');
+        setZip(user.addressDetails.zip || '');
+        setCountry(user.addressDetails.country || '');
+        setPhone(user.addressDetails.phone || '');
+      }
+    }
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUserProfile({ displayName, shippingAddress });
+    await updateUserProfile({
+      displayName,
+      addressDetails: {
+        street,
+        city,
+        stateRegion,
+        zip,
+        country,
+        phone,
+      }
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -29,7 +61,7 @@ export function AccountPage() {
         <p className="page-subtitle">Gestiona tu perfil y preferencias de envío</p>
       </div>
 
-      <div style={{ maxWidth: 600 }}>
+      <div style={{ maxWidth: 700 }}>
         <div className="card card-lg animate-in" style={{ padding: '2rem' }}>
           {/* User profile header */}
           <div
@@ -69,13 +101,13 @@ export function AccountPage() {
 
           {saved && (
             <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-              Perfil actualizado correctamente
+              Perfil actualizado correctamente en la base de datos
             </div>
           )}
 
           <form
             onSubmit={handleSave}
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
           >
             <div className="form-group">
               <label className="label">Correo electrónico</label>
@@ -99,17 +131,75 @@ export function AccountPage() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="label">Dirección de envío habitual</label>
-              <textarea
-                className="input textarea"
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                placeholder="Calle, Número, Ciudad, CP, País"
-              />
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', marginTop: '0.35rem' }}>
-                Se aplicará automáticamente durante el proceso de compra
+            <div>
+              <h3 style={{ fontWeight: 600, marginBottom: '1rem', fontSize: '1rem', color: 'var(--text)' }}>
+                Dirección de envío habitual
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                Se aplicará automáticamente durante el proceso de compra.
               </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="label">Calle y Número</label>
+                  <input
+                    className="input"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Ej. Av. Reforma 123, Int. 4"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="label">Ciudad</label>
+                  <input
+                    className="input"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Ej. Ciudad de México"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="label">Estado / Provincia</label>
+                  <input
+                    className="input"
+                    value={stateRegion}
+                    onChange={(e) => setStateRegion(e.target.value)}
+                    placeholder="Ej. CDMX"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="label">Código Postal</label>
+                  <input
+                    className="input"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    placeholder="Ej. 06000"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="label">País</label>
+                  <input
+                    className="input"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder="Ej. México"
+                  />
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="label">Teléfono de contacto</label>
+                  <input
+                    className="input"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Ej. +52 55 1234 5678"
+                    type="tel"
+                  />
+                </div>
+              </div>
             </div>
 
             <hr className="divider" />

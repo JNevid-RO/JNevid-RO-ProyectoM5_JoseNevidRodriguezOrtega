@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import type { UserProfile, UserRole } from '../types';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import type { UserProfile, UserRole, AddressDetails } from '../types';
 import {
   auth,
   db,
@@ -20,28 +20,10 @@ interface AuthContextValue {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (data: { displayName?: string; shippingAddress?: string }) => void;
+  updateUserProfile: (data: { displayName?: string; shippingAddress?: string; addressDetails?: AddressDetails }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-/**
- * Lee el rol del usuario desde Firestore (/users/{uid}).
- * Si el documento no existe, retorna 'customer' como rol predeterminado.
- */
-async function fetchUserRole(uid: string): Promise<UserRole> {
-  try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-      const data = userDoc.data();
-      if (data.role === 'admin') return 'admin';
-    }
-    return 'customer';
-  } catch (error) {
-    console.error('Error al consultar rol del usuario en Firestore:', error);
-    return 'customer';
-  }
-}
 
 /**
  * Crea o actualiza el documento del usuario en Firestore si no existe.
@@ -90,13 +72,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userRole = await fetchUserRole(firebaseUser.uid);
+        let userData: any = {};
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+          }
+        } catch (e) {
+          console.error("Error fetching user data", e);
+        }
+
+        const userRole = userData.role === 'admin' ? 'admin' : 'customer';
+        
         setUser((prev) => ({
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || prev?.displayName || firebaseUser.email?.split('@')[0],
           role: userRole,
-          shippingAddress: prev?.shippingAddress,
+          shippingAddress: userData.shippingAddress || prev?.shippingAddress,
+          addressDetails: userData.addressDetails || prev?.addressDetails,
         }));
         setRole(userRole);
       }
@@ -111,12 +105,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await signInWithFirebase(email, password);
       const firebaseUser = result.user;
-      const userRole = await fetchUserRole(firebaseUser.uid);
+      
+      let userData: any = {};
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (userDoc.exists()) userData = userDoc.data();
+      
+      const userRole = userData.role === 'admin' ? 'admin' : 'customer';
       const nextUser: UserProfile = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         displayName: firebaseUser.displayName || email.split('@')[0],
         role: userRole,
+        shippingAddress: userData.shippingAddress,
+        addressDetails: userData.addressDetails,
       };
       setUser(nextUser);
       setRole(nextUser.role);
@@ -132,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebaseUser = result.user;
       const displayName = nameInput || email.split('@')[0];
       const userRole: UserRole = 'customer';
-      // Crear documento en Firestore para el nuevo usuario
+      
       await ensureUserDocument(firebaseUser.uid, firebaseUser.email || email, displayName, userRole);
       const nextUser: UserProfile = {
         uid: firebaseUser.uid,
@@ -153,14 +154,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await signInWithGooglePopup();
       const firebaseUser = result.user;
       const displayName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario Google';
-      // Leer rol existente o crear documento como customer
-      let userRole = await fetchUserRole(firebaseUser.uid);
-      await ensureUserDocument(firebaseUser.uid, firebaseUser.email || '', displayName, userRole);
+      
+      let userData: any = {};
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      let userRole: UserRole = 'customer';
+      
+      if (userDoc.exists()) {
+        userData = userDoc.data();
+        userRole = userData.role === 'admin' ? 'admin' : 'customer';
+      } else {
+        await ensureUserDocument(firebaseUser.uid, firebaseUser.email || '', displayName, userRole);
+      }
+
       const nextUser: UserProfile = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         displayName,
         role: userRole,
+        shippingAddress: userData.shippingAddress,
+        addressDetails: userData.addressDetails,
       };
       setUser(nextUser);
       setRole(nextUser.role);
@@ -176,8 +188,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('ecommerce_user');
   };
 
-  const updateUserProfile = (data: { displayName?: string; shippingAddress?: string }) => {
+  const updateUserProfile = async (data: { displayName?: string; shippingAddress?: string; addressDetails?: AddressDetails }) => {
     setUser((prev) => (prev ? { ...prev, ...data } : null));
+    if (user) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, data);
+      } catch (e) {
+        console.error('Error updating user document in Firestore', e);
+      }
+    }
   };
 
   const value = useMemo(

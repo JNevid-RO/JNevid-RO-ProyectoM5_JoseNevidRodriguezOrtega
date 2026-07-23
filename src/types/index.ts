@@ -1,5 +1,14 @@
 export type UserRole = 'customer' | 'admin';
 
+export interface AddressDetails {
+  street: string;
+  city: string;
+  stateRegion: string;
+  zip: string;
+  country: string;
+  phone: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -7,6 +16,7 @@ export interface UserProfile {
   role: UserRole;
   createdAt?: string;
   shippingAddress?: string;
+  addressDetails?: AddressDetails;
 }
 
 export interface Product {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useOrders } from '../contexts/OrdersContext';
@@ -11,13 +11,25 @@ export function CheckoutPage() {
   const { addOrder } = useOrders();
   const { user } = useAuth();
 
-  // Address State
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [stateRegion, setStateRegion] = useState('');
-  const [zip, setZip] = useState('');
-  const [country, setCountry] = useState('');
-  const [phone, setPhone] = useState('');
+  // Address State (prefilled from user profile if available)
+  const [street, setStreet] = useState(user?.addressDetails?.street || '');
+  const [city, setCity] = useState(user?.addressDetails?.city || '');
+  const [stateRegion, setStateRegion] = useState(user?.addressDetails?.stateRegion || '');
+  const [zip, setZip] = useState(user?.addressDetails?.zip || '');
+  const [country, setCountry] = useState(user?.addressDetails?.country || '');
+  const [phone, setPhone] = useState(user?.addressDetails?.phone || '');
+
+  
+  useEffect(() => {
+    if (user?.addressDetails) {
+      setStreet(user.addressDetails.street || '');
+      setCity(user.addressDetails.city || '');
+      setStateRegion(user.addressDetails.stateRegion || '');
+      setZip(user.addressDetails.zip || '');
+      setCountry(user.addressDetails.country || '');
+      setPhone(user.addressDetails.phone || '');
+    }
+  }, [user]);
 
   // Payment State (Simulated)
   const [cardNumber, setCardNumber] = useState('');
