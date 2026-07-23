@@ -27,7 +27,9 @@ export function Navbar() {
             <Link to="/cart" className="nav-link nav-link-cart">
               Carrito{totalItems > 0 ? ` (${totalItems})` : ''}
             </Link>
-            <Link to="/checkout" className="nav-link">Checkout</Link>
+            {totalItems > 0 && (
+              <Link to="/checkout" className="nav-link">Checkout</Link>
+            )}
             {userPendingOrders.length > 0 && (
               <Link to="/orders" className="nav-link nav-link-pending">
                 Órdenes ({userPendingOrders.length})
