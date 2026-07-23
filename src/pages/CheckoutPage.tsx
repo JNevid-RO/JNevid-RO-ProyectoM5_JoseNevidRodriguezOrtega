@@ -11,10 +11,16 @@ export function CheckoutPage() {
   const { addOrder } = useOrders();
   const { user } = useAuth();
 
-  const [address, setAddress] = useState(user?.shippingAddress || '');
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [stateRegion, setStateRegion] = useState('');
+  const [zip, setZip] = useState('');
+  const [country, setCountry] = useState('');
+  const [phone, setPhone] = useState('');
   const [done, setDone] = useState(false);
 
-  const canSubmit = state.items.length > 0 && address.trim().length > 0;
+  const fullAddress = `${street}, ${city}, ${stateRegion} ${zip}, ${country}. Tel: ${phone}`;
+  const canSubmit = state.items.length > 0 && street.trim().length > 0 && city.trim().length > 0 && phone.trim().length > 0 && country.trim().length > 0;
 
   const handleCheckout = async () => {
     if (!canSubmit || !user) return;
@@ -26,7 +32,7 @@ export function CheckoutPage() {
       quantity: item.quantity,
     }));
 
-    await addOrder(orderItems, totalAmount, address, user.uid);
+    await addOrder(orderItems, totalAmount, fullAddress, user.uid);
     setDone(true);
     clearCart();
   };
@@ -89,22 +95,77 @@ export function CheckoutPage() {
           <h2 style={{ fontWeight: 700, color: 'var(--text)', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
             Dirección de envío
           </h2>
-          <div className="form-group">
-            <label className="label">Dirección completa</label>
-            <textarea
-              className="input textarea"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Calle, Número, Ciudad, Código Postal, País"
-            />
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="label">Calle y Número</label>
+              <input
+                className="input"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder="Ej. Av. Reforma 123, Int. 4"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="label">Ciudad</label>
+              <input
+                className="input"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ej. Ciudad de México"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="label">Estado / Provincia</label>
+              <input
+                className="input"
+                value={stateRegion}
+                onChange={(e) => setStateRegion(e.target.value)}
+                placeholder="Ej. CDMX"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="label">Código Postal</label>
+              <input
+                className="input"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                placeholder="Ej. 06000"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="label">País</label>
+              <input
+                className="input"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Ej. México"
+              />
+            </div>
+
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label className="label">Teléfono de contacto</label>
+              <input
+                className="input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ej. +52 55 1234 5678"
+                type="tel"
+              />
+            </div>
           </div>
+
           <button
             className="btn btn-primary btn-lg btn-block"
-            style={{ marginTop: '1.25rem', borderRadius: 'var(--radius-sm)' }}
+            style={{ marginTop: '1.5rem', borderRadius: 'var(--radius-sm)' }}
             onClick={handleCheckout}
             disabled={!canSubmit}
           >
-            {canSubmit ? 'Confirmar pedido' : 'Agrega una dirección'}
+            {canSubmit ? 'Confirmar pedido' : 'Completa todos los campos obligatorios'}
           </button>
         </div>
 
