@@ -30,11 +30,9 @@ export function Navbar() {
             {totalItems > 0 && (
               <Link to="/checkout" className="nav-link">Checkout</Link>
             )}
-            {userPendingOrders.length > 0 && (
-              <Link to="/orders" className="nav-link nav-link-pending">
-                Órdenes ({userPendingOrders.length})
-              </Link>
-            )}
+            <Link to="/orders" className={userPendingOrders.length > 0 ? "nav-link nav-link-pending" : "nav-link"}>
+              Mis Órdenes{userPendingOrders.length > 0 ? ` (${userPendingOrders.length})` : ''}
+            </Link>
 
             {role === 'admin' && (
               <Link to="/admin" className="nav-link nav-link-admin">
