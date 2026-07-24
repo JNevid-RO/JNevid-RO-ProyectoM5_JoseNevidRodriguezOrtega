@@ -27,6 +27,11 @@ export interface Product {
   category: string;
   imageUrl: string;
   stock: number;
+  brand?: string;
+  origin?: string;
+  warranty?: string;
+  sku?: string;
+  specifications?: Record<string, string>;
   available?: boolean;
   createdAt?: string;
 }

@@ -97,9 +97,17 @@ export function HomePage() {
                 />
               </div>
               <div className="product-body">
-                <span className="product-category">{product.category}</span>
+                <div className="product-meta-header">
+                  <span className="product-category">{product.category}</span>
+                  {product.brand && <span className="product-brand-tag">{product.brand}</span>}
+                </div>
                 <h3 className="product-title">{product.name}</h3>
                 <p className="product-desc">{product.description}</p>
+                {product.origin && (
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', marginBottom: '0.6rem' }}>
+                    🌐 {product.origin} {product.warranty ? `• 🛡️ ${product.warranty}` : ''}
+                  </p>
+                )}
                 <p className="product-price">{formatPrice(product.price)}</p>
                 <div className="product-actions">
                   {user ? (
@@ -115,15 +123,15 @@ export function HomePage() {
                         })
                       }
                     >
-                      Agregar al carrito
+                      Agregar
                     </button>
                   ) : (
                     <Link to="/login" className="btn btn-secondary btn-sm">
                       Iniciar sesión
                     </Link>
                   )}
-                  <Link to={`/product/${product.id}`} className="btn btn-ghost btn-sm">
-                    Ver detalle
+                  <Link to={`/product/${product.id}`} className="btn btn-gold btn-sm">
+                    Ver más
                   </Link>
                 </div>
               </div>

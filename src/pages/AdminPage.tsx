@@ -24,6 +24,11 @@ export function AdminPage() {
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('Computación');
   const [stock, setStock] = useState('10');
+  const [brand, setBrand] = useState('');
+  const [origin, setOrigin] = useState('');
+  const [warranty, setWarranty] = useState('');
+  const [sku, setSku] = useState('');
+  const [specificationsText, setSpecificationsText] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
@@ -43,6 +48,11 @@ export function AdminPage() {
     setPrice('');
     setCategory('Computación');
     setStock('10');
+    setBrand('');
+    setOrigin('');
+    setWarranty('');
+    setSku('');
+    setSpecificationsText('');
     setImageFile(null);
   };
 
@@ -53,6 +63,18 @@ export function AdminPage() {
     setPrice(String(product.price));
     setCategory(product.category);
     setStock(String(product.stock));
+    setBrand(product.brand || '');
+    setOrigin(product.origin || '');
+    setWarranty(product.warranty || '');
+    setSku(product.sku || '');
+    if (product.specifications) {
+      const specLines = Object.entries(product.specifications)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('\n');
+      setSpecificationsText(specLines);
+    } else {
+      setSpecificationsText('');
+    }
     setImageFile(null);
     setMessage('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -74,26 +96,43 @@ export function AdminPage() {
         imageUrl = uploadResult.publicUrl;
       }
 
+      // Parsear especificaciones desde el área de texto (formato Clave: Valor)
+      const parsedSpecs: Record<string, string> = {};
+      if (specificationsText.trim()) {
+        specificationsText.split('\n').forEach((line) => {
+          const parts = line.split(':');
+          if (parts.length >= 2) {
+            const k = parts[0].trim();
+            const v = parts.slice(1).join(':').trim();
+            if (k && v) {
+              parsedSpecs[k] = v;
+            }
+          }
+        });
+      }
+
+      const productPayload = {
+        name,
+        description,
+        price: parseFloat(price),
+        category,
+        stock: parseInt(stock, 10) || 0,
+        imageUrl,
+        brand: brand.trim() || undefined,
+        origin: origin.trim() || undefined,
+        warranty: warranty.trim() || undefined,
+        sku: sku.trim() || undefined,
+        specifications: Object.keys(parsedSpecs).length > 0 ? parsedSpecs : undefined,
+      };
+
       if (editingProduct) {
         // Actualizar producto existente en Firestore
-        await updateProduct(editingProduct.id, {
-          name,
-          description,
-          price: parseFloat(price),
-          category,
-          stock: parseInt(stock, 10) || 0,
-          imageUrl,
-        });
+        await updateProduct(editingProduct.id, productPayload);
         setMessage(`Producto "${name}" actualizado correctamente.`);
       } else {
         // Crear producto nuevo en Firestore
         await addProduct({
-          name,
-          description,
-          price: parseFloat(price),
-          category,
-          imageUrl,
-          stock: parseInt(stock, 10) || 0,
+          ...productPayload,
           available: true,
           createdAt: new Date().toISOString(),
         });
@@ -250,13 +289,66 @@ export function AdminPage() {
                 </div>
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="label">Marca</label>
+                  <input
+                    className="input"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="Ej: AcousticNova"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="label">País de origen</label>
+                  <input
+                    className="input"
+                    value={origin}
+                    onChange={(e) => setOrigin(e.target.value)}
+                    placeholder="Ej: Japón"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="label">Garantía</label>
+                  <input
+                    className="input"
+                    value={warranty}
+                    onChange={(e) => setWarranty(e.target.value)}
+                    placeholder="Ej: 24 Meses Oficial"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="label">Código SKU</label>
+                  <input
+                    className="input"
+                    value={sku}
+                    onChange={(e) => setSku(e.target.value)}
+                    placeholder="Ej: ANC-PR-900"
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label className="label">Descripción</label>
+                <label className="label">Descripción general</label>
                 <textarea
                   className="input textarea"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Detalles y características del producto..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="label">Ficha de especificaciones (un par por línea, Clave: Valor)</label>
+                <textarea
+                  className="input textarea"
+                  rows={4}
+                  value={specificationsText}
+                  onChange={(e) => setSpecificationsText(e.target.value)}
+                  placeholder={"Batería: 40 horas\nConectividad: Bluetooth 5.3\nMaterial: Aluminio"}
                 />
               </div>
 

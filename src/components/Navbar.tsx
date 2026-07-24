@@ -16,7 +16,7 @@ export function Navbar() {
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">
-        <span className="navbar-brand-gradient">ShopNova</span>
+        <span className="navbar-brand-gradient">✨ ShopNova</span>
       </Link>
 
       <div className="navbar-links">
